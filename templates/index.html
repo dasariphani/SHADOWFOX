@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Image Classifier AI</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: #0a0a0f;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(120,40,200,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(0,200,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(255,50,100,0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+      padding: 40px;
+      border-radius: 24px;
+      width: 480px;
+      box-shadow:
+        0 0 0 1px rgba(120,40,200,0.2),
+        0 20px 60px rgba(0,0,0,0.8),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      animation: cardIn 0.8s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(40px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0)    scale(1);    }
+    }
+
+    /* Glowing top border */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 10%; right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #a855f7, #06b6d4, transparent);
+      border-radius: 50%;
+    }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 32px; }
+
+    .logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 22px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 3px;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: rgba(255,255,255,0.3);
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Buttons row */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      background: rgba(255,255,255,0.2);
+      border-radius: 50%;
+      transform: translate(-50%,-50%);
+      transition: width 0.4s, height 0.4s;
+    }
+
+    .btn:active::after { width: 200px; height: 200px; }
+
+    #uploadBtn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    }
+    #uploadBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(99,102,241,0.6);
+    }
+
+    #cameraBtn {
+      background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+      color: white;
+      box-shadow: 0 4px 20px rgba(6,182,212,0.4);
+    }
+    #cameraBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(6,182,212,0.6);
+    }
+
+    input[type="file"] { display: none; }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 1px dashed rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .upload-zone.has-image { padding: 0; overflow: hidden; }
+
+    #preview {
+      width: 100%;
+      border-radius: 16px;
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+
+    #videoFeed {
+      width: 100%;
+      border-radius: 16px;
+      display: none;
+    }
+
+    canvas { display: none; }
+
+    .upload-hint {
+      color: rgba(255,255,255,0.2);
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+
+    /* Capture button */
+    #captureBtn {
+      display: none;
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #f43f5e, #ec4899);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+    #captureBtn:hover { transform: translateY(-2px); }
+
+    /* Classify button */
+    #classifyBtn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #06b6d4);
+      background-size: 200% 200%;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 30px rgba(168,85,247,0.5);
+      animation: gradientShift 3s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0%   { background-position: 0%   50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0%   50%; }
+    }
+
+    #classifyBtn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 40px rgba(168,85,247,0.7);
+    }
+
+    #classifyBtn:active { transform: translateY(0); }
+
+    /* Loading */
+    #loading {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .loading-bar {
+      width: 100%;
+      height: 2px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .loading-bar::after {
+      content: '';
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #a855f7, #06b6d4);
+      animation: loading 1.5s ease infinite;
+    }
+
+    @keyframes loading {
+      0%   { width: 0%;   margin-left: 0%; }
+      50%  { width: 70%;  margin-left: 15%; }
+      100% { width: 0%;   margin-left: 100%; }
+    }
+
+    .loading-text {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    /* Results */
+    #result {
+      margin-top: 24px;
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin: 16px 0 8px;
+      padding-left: 4px;
+    }
+
+    .living-title { color: #a855f7; }
+    .object-title { color: #06b6d4; }
+
+    .result-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin: 6px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s;
+      animation: slideIn 0.4s ease both;
+    }
+
+    .result-item:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.12);
+      transform: translateX(4px);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .result-item:nth-child(2) { animation-delay: 0.1s; }
+    .result-item:nth-child(3) { animation-delay: 0.2s; }
+
+    .item-label {
+      color: rgba(255,255,255,0.85);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .item-conf {
+      font-family: 'Orbitron', monospace;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .living-conf {
+      color: #a855f7;
+      background: rgba(168,85,247,0.1);
+      border: 1px solid rgba(168,85,247,0.3);
+    }
+
+    .object-conf {
+      color: #06b6d4;
+      background: rgba(6,182,212,0.1);
+      border: 1px solid rgba(6,182,212,0.3);
+    }
+
+    .nothing {
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      font-size: 13px;
+      letter-spacing: 2px;
+      padding: 20px;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">⚡ VISION AI</div>
+      <div class="subtitle">Image Classification System</div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button class="btn" id="uploadBtn" onclick="document.getElementById('imageInput').click()">
+        📂 Upload Image
+      </button>
+      <button class="btn" id="cameraBtn" onclick="startCamera()">
+        📷 Open Camera
+      </button>
+    </div>
+
+    <input type="file" id="imageInput" accept="image/*" onchange="handleUpload(event)"/>
+
+    <!-- Preview Zone -->
+    <div class="upload-zone" id="uploadZone">
+      <span class="upload-hint">[ NO IMAGE SELECTED ]</span>
+    </div>
+
+    <video id="videoFeed" autoplay playsinline></video>
+    <button id="captureBtn" onclick="capturePhoto()">📸 Capture Photo</button>
+    <canvas id="canvas"></canvas>
+    <img id="preview" alt="preview"/>
+
+    <!-- Classify Button -->
+    <button id="classifyBtn" onclick="predict()">⚡ ANALYZE</button>
+
+    <!-- Loading -->
+    <div id="loading">
+      <div class="loading-bar"></div>
+      <div class="loading-text">Analyzing Image...</div>
+    </div>
+
+    <!-- Results -->
+    <div id="result">
+      <div class="divider"></div>
+      <div id="predList"></div>
+    </div>
+
+  </div>
+
+  <script>
+    let stream      = null;
+    let capturedBlob = null;
+
+    function handleUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      stopCamera();
+      capturedBlob = file;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const preview   = document.getElementById('preview');
+        const zone      = document.getElementById('uploadZone');
+        preview.src     = e.target.result;
+        preview.style.display = 'block';
+        zone.innerHTML  = '';
+        zone.appendChild(preview);
+        zone.classList.add('has-image');
+      };
+      reader.readAsDataURL(file);
+      document.getElementById('result').style.display = 'none';
+    }
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const zone = document.getElementById('uploadZone');
+        const video = document.getElementById('videoFeed');
+        video.srcObject = stream;
+        zone.innerHTML = '';
+        zone.appendChild(video);
+        zone.classList.add('has-image');
+        video.style.display = 'block';
+        document.getElementById('captureBtn').style.display = 'block';
+        document.getElementById('result').style.display     = 'none';
+      } catch {
+        alert('❌ Camera access denied!');
+      }
+    }
+
+    function stopCamera() {
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+      document.getElementById('videoFeed').style.display  = 'none';
+      document.getElementById('captureBtn').style.display = 'none';
+    }
+
+    function capturePhoto() {
+      const video  = document.getElementById('videoFeed');
+      const canvas = document.getElementById('canvas');
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+
+      const zone    = document.getElementById('uploadZone');
+      const preview = document.getElementById('preview');
+      preview.src   = canvas.toDataURL('image/jpeg');
+      preview.style.display = 'block';
+      zone.innerHTML = '';
+      zone.appendChild(preview);
+      zone.classList.add('has-image');
+
+      canvas.toBlob(blob => { capturedBlob = blob; }, 'image/jpeg');
+      stopCamera();
+      document.getElementById('captureBtn').style.display = 'none';
+      document.getElementById('result').style.display     = 'none';
+    }
+
+    async function predict() {
+      if (!capturedBlob) {
+        alert('Please upload or capture an image first!');
+        return;
+      }
+
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('result').style.display  = 'none';
+
+      const formData = new FormData();
+      formData.append('file', capturedBlob);
+
+      try {
+        const res  = await fetch('/predict', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        document.getElementById('loading').style.display = 'none';
+
+        let html = '';
+
+        if (data.living_things && data.living_things.length > 0) {
+          html += '<div class="section-title living-title">🐾 Living Beings</div>';
+          data.living_things.forEach(p => {
+            html +=
+              '<div class="result-item">' +
+              '<span class="item-label">' + p.label + '</span>' +
+              '<span class="item-conf living-conf">' + p.confidence + '</span>' +
+              '</div>';
+          });
+        }
+
+        if (data.objects && data.objects.length > 0) {
+          html += '<div class="section-title object-title">📦 Objects</div>';
+          data.objects.forEach(p => {
+            html +=
+              '<div class="result-item">' +
+              '<span class="item-label">' + p.label + '</span>' +
+              '<span class="item-conf object-conf">' + p.confidence + '</span>' +
+              '</div>';
+          });
+        }
+
+        if (!html) {
+          html = '<div class="nothing">[ NOTHING DETECTED ]</div>';
+        }
+
+        document.getElementById('predList').innerHTML  = html;
+        document.getElementById('result').style.display = 'block';
+
+      } catch (err) {
+        document.getElementById('loading').style.display = 'none';
+        alert('Something went wrong! Check CMD for errors.');
+      }
+    }
+  </script>
+</body>
+</html>
