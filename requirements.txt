@@ -1,4 +1,6 @@
-flask
-requests
-pillow
-numpy
+streamlit
+pandas
+joblib
+scikit-learn
+plotly
+statsmodels

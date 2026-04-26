@@ -5,8 +5,8 @@ import base64
 app = Flask(__name__)
 
 # ── Put your Imagga keys here ──
-API_KEY    = "acc_f80df2832dc1070"
-API_SECRET = "b617b60799175cee59e0bc66671bbed4"
+API_KEY    = "acc_d04657e43c37d4a"
+API_SECRET = "a22a670f1545c9f947f87c227d4a3cee"
 
 # Living things keywords
 LIVING_KEYWORDS = [
